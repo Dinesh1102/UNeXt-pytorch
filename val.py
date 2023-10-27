@@ -25,7 +25,8 @@ def parse_args():
 
     parser.add_argument('--name', default=None,
                         help='model name')
-
+    parser.add_argument('--dataset', default='isic',
+                        help='dataset name')
     args = parser.parse_args()
 
     return args
@@ -36,7 +37,7 @@ def main():
 
     with open('models/%s/config.yml' % args.name, 'r') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
-
+    args = vars(parse_args())
     print('-'*20)
     for key in config.keys():
         print('%s: %s' % (key, str(config[key])))
@@ -68,8 +69,8 @@ def main():
 
     val_dataset = Dataset(
         img_ids=val_img_ids,
-        img_dir=os.path.join('inputs', config['dataset'], 'images'),
-        mask_dir=os.path.join('inputs', config['dataset'], 'masks'),
+        img_dir=os.path.join('inputs', args['dataset'], 'images'),
+        mask_dir=os.path.join('inputs', args['dataset'], 'masks'),
         img_ext=config['img_ext'],
         mask_ext=config['mask_ext'],
         num_classes=config['num_classes'],
