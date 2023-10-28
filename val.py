@@ -56,7 +56,7 @@ def main():
     img_ids = glob(os.path.join('inputs', args['dataset'], 'images', '*' + config['img_ext']))
     img_ids = [os.path.splitext(os.path.basename(p))[0] for p in img_ids]
 
-    _, val_img_ids = train_test_split(img_ids, test_size=0.2, random_state=41)
+    # _, val_img_ids = train_test_split(img_ids, test_size=0.2, random_state=41)
 
     model.load_state_dict(torch.load('models/%s/model.pth' %
                                      config['name']))
@@ -68,7 +68,7 @@ def main():
     ])
 
     val_dataset = Dataset(
-        img_ids=val_img_ids,
+        img_ids=img_ids,
         img_dir=os.path.join('inputs', args['dataset'], 'images'),
         mask_dir=os.path.join('inputs', args['dataset'], 'masks'),
         img_ext=config['img_ext'],
