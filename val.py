@@ -4,12 +4,17 @@ from glob import glob
 
 import cv2
 import torch
+import numpy as np
 import torch.backends.cudnn as cudnn
 import yaml
 from albumentations.augmentations import transforms
 from albumentations.core.composition import Compose
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
+import kornia as K
+import torchvision
+import torch.nn.functional as F
+from matplotlib import pyplot as plt
 
 import archs
 from dataset import Dataset
@@ -19,6 +24,9 @@ from albumentations import RandomRotate90,Resize
 import time
 from archs import UNext
 
+def imshow(input: torch.Tensor):
+    
+    return input_np
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -88,8 +96,9 @@ def main():
     cput = AverageMeter()
 
     count = 0
-    for c in range(config['num_classes']):
-        os.makedirs(os.path.join('outputs', config['name'], str(c)), exist_ok=True)
+    # for c in range(config['num_classes']):
+    os.makedirs(os.path.join('outputs_masks'), exist_ok=True)
+    os.makedirs(os.path.join('outputs_boundaries'), exist_ok=True)
     with torch.no_grad():
         for input, target, meta in tqdm(val_loader, total=len(val_loader)):
             input = input.cuda()
@@ -109,8 +118,28 @@ def main():
 
             for i in range(len(output)):
                 for c in range(config['num_classes']):
-                    cv2.imwrite(os.path.join('outputs', config['name'], str(c), meta['img_id'][i] + '.jpg'),
+                    path = os.path.join(meta['img_id'][i] + '.png')
+                    cv2.imwrite(os.path.join('outputs_masks',path),
                                 (output[i, c] * 255).astype('uint8'))
+                    
+                    x_rgb: torch.Tensor = K.io.load_image(os.path.join('outputs_masks',path), K.io.ImageLoadType.RGB32)[None, ...]  # BxCxHxW
+                    
+                    x_gray = K.color.rgb_to_grayscale(x_rgb)
+                    
+                    x_sobel: torch.Tensor = K.filters.sobel(x_gray)
+                    
+                    # Apply dilation to increase the width of the boundary
+                    
+                    kernel_size = 3  # Adjust the kernel size for the desired width
+                    x_sobel_dilated = F.conv2d(x_sobel, torch.ones(1, 1, kernel_size, kernel_size).to(x_sobel.device), padding=kernel_size//2)
+                    # x_sobel_dilated = 1.0-x_sobel_dilated
+                    input_np = x_sobel_dilated.squeeze(0).cpu().detach().numpy()
+                    input_np = (input_np - input_np.min()) / (input_np.max() - input_np.min()) * 255
+                    input_np = input_np.astype(np.uint8)
+                    input_np = input_np.transpose(1, 2, 0)
+                    cv2.imwrite(os.path.join('outputs_boundaries',path),input_np)
+
+
 
     print('IoU: %.4f' % iou_avg_meter.avg)
     print('Dice: %.4f' % dice_avg_meter.avg)
