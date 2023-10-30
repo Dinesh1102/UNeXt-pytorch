@@ -24,10 +24,6 @@ from albumentations import RandomRotate90,Resize
 import time
 from archs import UNext
 
-def imshow(input: torch.Tensor):
-    
-    return input_np
-
 def parse_args():
     parser = argparse.ArgumentParser()
 
