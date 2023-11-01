@@ -49,7 +49,7 @@ def main():
 
     cudnn.benchmark = True
 
-    print("=> creating model %s" % config['arch'])
+    # print("=> creating model %s" % config['arch'])
     model = archs.__dict__[config['arch']](config['num_classes'],
                                            config['input_channels'],
                                            config['deep_supervision'])
@@ -108,34 +108,24 @@ def main():
             iou_avg_meter.update(iou, input.size(0))
             dice_avg_meter.update(dice, input.size(0))
 
-            output = torch.sigmoid(output).cpu().numpy()
-            output[output>=0.5]=1
-            output[output<0.5]=0
+            # output = torch.sigmoid(output).cpu().numpy()    #gradient flow breaks here
+            output = torch.sigmoid(output)
 
-            for i in range(len(output)):
-                for c in range(config['num_classes']):
-                    path = os.path.join(meta['img_id'][i] + '.png')
-                    cv2.imwrite(os.path.join('outputs_masks',path),
-                                (output[i, c] * 255).astype('uint8'))
-                    
-                    x_rgb: torch.Tensor = K.io.load_image(os.path.join('outputs_masks',path), K.io.ImageLoadType.RGB32)[None, ...]  # BxCxHxW
-                    
-                    x_gray = K.color.rgb_to_grayscale(x_rgb)
-                    
-                    x_sobel: torch.Tensor = K.filters.sobel(x_gray)
-                    
-                    # Apply dilation to increase the width of the boundary
-                    
-                    kernel_size = 3  # Adjust the kernel size for the desired width
-                    x_sobel_dilated = F.conv2d(x_sobel, torch.ones(1, 1, kernel_size, kernel_size).to(x_sobel.device), padding=kernel_size//2)
-                    # x_sobel_dilated = 1.0-x_sobel_dilated
-                    input_np = x_sobel_dilated.squeeze(0).cpu().detach().numpy()
-                    input_np = (input_np - input_np.min()) / (input_np.max() - input_np.min()) * 255
-                    input_np = input_np.astype(np.uint8)
-                    input_np = input_np.transpose(1, 2, 0)
-                    cv2.imwrite(os.path.join('outputs_boundaries',path),input_np)
+            x_sobel: torch.Tensor = K.filters.sobel(output)
+            
+            kernel_size = 3  # Adjust the kernel size for the desired width
+            x_sobel = F.conv2d(x_sobel, torch.ones(1, 1, kernel_size, kernel_size).to(x_sobel.device), padding=kernel_size//2)
+            input_np = x_sobel.cpu().detach().numpy()
+            input_np = (input_np - input_np.min()) / (input_np.max() - input_np.min())
+            input_np = input_np.transpose(0,2,3,1)
+            
+            output = output.squeeze(1).cpu().detach().numpy()
+            output = (output - output.min()) / (output.max() - output.min())
 
-
+            for i in range(len(x_sobel)):
+              cv2.imwrite(os.path.join('outputs_masks',meta['img_id'][i] + '.png'),(output[i]*255).astype('uint8'))
+              cv2.imwrite(os.path.join('outputs_boundaries',meta['img_id'][i] + '.png'),(input_np[i]*255).astype('uint8'))
+            
 
     print('IoU: %.4f' % iou_avg_meter.avg)
     print('Dice: %.4f' % dice_avg_meter.avg)
