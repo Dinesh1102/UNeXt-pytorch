@@ -27,6 +27,8 @@ from archs import UNext
 def parse_args():
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('--temp', default='UNext_model',
+                        help='model name')
     parser.add_argument('--name', default=None,
                         help='model name')
     parser.add_argument('--dataset', default='isic',
@@ -38,7 +40,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-
+    x = args.name
     with open('models/%s/config.yml' % args.name, 'r') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
     args = vars(parse_args())
@@ -63,7 +65,7 @@ def main():
     # _, val_img_ids = train_test_split(img_ids, test_size=0.2, random_state=41)
 
     model.load_state_dict(torch.load('models/%s/model.pth' %
-                                     config['name']))
+                                     x))
     model.eval()
 
     val_transform = Compose([
